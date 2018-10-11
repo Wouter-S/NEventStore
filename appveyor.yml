@@ -1,0 +1,16 @@
+configuration: Release
+
+image: Visual Studio 2017
+
+build_script:
+  - dotnet restore src/NEventStore.sln
+  - dotnet build src/NEventStore.sln
+  - dotnet pack src/NEventStore/NEventStore.csproj
+
+nuget:
+  project_feed: true
+  disable_publish_on_pr: false
+  
+artifacts:
+  - path: '**\Release\*.nupkg'
+    name: Nuget

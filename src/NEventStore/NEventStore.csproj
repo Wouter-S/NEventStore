@@ -11,6 +11,10 @@
     <DocumentationFile>bin\$(Configuration)\NEventStore.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
     <DefineConstants Condition="'$(TargetFramework)' == 'net40'">HAVE_HTTPCONTEXT;HAVE_DBFACTORY;HAVE_CONNECTIONSTRINGSSETTINGS;HAVE_PERFORMANCECOUNTERS</DefineConstants>
+	
+    <VersionBuildNumber Condition="'$(APPVEYOR_BUILD_NUMBER)' != ''">$(APPVEYOR_BUILD_NUMBER)</VersionBuildNumber>
+    <VersionBuildNumber Condition="'$(VersionBuildNumber)' == ''">0</VersionBuildNumber>
+    <VersionPrefix>5.2.$(VersionBuildNumber)</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup Label="Package references">
