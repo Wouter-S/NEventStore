@@ -5,11 +5,13 @@ namespace NEventStore
 
     public static class SqlPersistenceWireupExtensions
     {
+#if HAVE_CONNECTIONSTRINGSSETTINGS
         public static SqlPersistenceWireup UsingSqlPersistence(this Wireup wireup, string connectionName)
         {
             var factory = new ConfigurationConnectionFactory(connectionName);
             return wireup.UsingSqlPersistence(factory);
         }
+#endif
 
         public static SqlPersistenceWireup UsingSqlPersistence(this Wireup wireup, string connectionName, string providerName, string connectionString)
         {

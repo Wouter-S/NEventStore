@@ -23,7 +23,11 @@ namespace NEventStore.Persistence.Sql
         private readonly string _connectionName;
         private readonly ConnectionStringSettings _connectionStringSettings;
 
+#if HAVE_CONNECTIONSTRINGSSETTINGS
         public ConfigurationConnectionFactory(string connectionName)
+#else
+        private ConfigurationConnectionFactory(string connectionName)
+#endif
         {
             _connectionName = connectionName ?? DefaultConnectionName;
             Logger.Debug(Messages.ConfiguringConnections, _connectionName);
@@ -139,5 +143,26 @@ namespace NEventStore.Persistence.Sql
 
             return settings;
         }
-    }
+
+#if !HAVE_DBFACTORY
+		private class DbProviderFactories
+        {
+            public static DbProviderFactory GetFactory(string providerName)
+            {
+                switch (providerName)
+                {
+                    case "System.Data.SqlClient":
+                        return System.Data.SqlClient.SqlClientFactory.Instance;
+                    case "MySql.Data.MySqlClient":
+                    case "Oracle.ManagedDataAccess.Client":
+                    case "Npgsql":
+                    case "System.Data.SQLite":
+                        throw new NotImplementedException();
+                }
+
+                throw new NotImplementedException("Custom factories not implemented");
+            }
+        }
+#endif
+	}
 }

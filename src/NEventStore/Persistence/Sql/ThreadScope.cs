@@ -7,7 +7,11 @@ namespace NEventStore.Persistence.Sql
 
     public class ThreadScope<T> : IDisposable where T : class
     {
+#if HAVE_HTTPCONTEXT
         private readonly HttpContext _context = HttpContext.Current;
+#else
+        private readonly object _context = null;
+#endif
         private readonly T _current;
         private readonly ILog _logger = LogFactory.BuildLogger(typeof (ThreadScope<T>));
         private readonly bool _rootScope;
@@ -77,7 +81,9 @@ namespace NEventStore.Persistence.Sql
         {
             if (_context != null)
             {
+#if HAVE_HTTPCONTEXT
                 return _context.Items[_threadKey] as T;
+#endif
             }
 
             return Thread.GetData(Thread.GetNamedDataSlot(_threadKey)) as T;
@@ -87,7 +93,9 @@ namespace NEventStore.Persistence.Sql
         {
             if (_context != null)
             {
+#if HAVE_HTTPCONTEXT
                 _context.Items[_threadKey] = value;
+#endif
             }
             else
             {

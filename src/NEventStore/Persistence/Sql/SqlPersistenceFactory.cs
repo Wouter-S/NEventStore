@@ -15,12 +15,14 @@ namespace NEventStore.Persistence.Sql
         private readonly ISerialize _serializer;
         private readonly IStreamIdHasher _streamIdHasher;
 
+#if HAVE_CONNECTIONSTRINGSSETTINGS
         public SqlPersistenceFactory(string connectionName, ISerialize serializer, ISqlDialect dialect = null)
             : this(serializer, TransactionScopeOption.Suppress, null, DefaultPageSize)
         {
             _connectionFactory = new ConfigurationConnectionFactory(connectionName);
             _dialect = dialect ?? ResolveDialect(new ConfigurationConnectionFactory(connectionName).Settings);
         }
+#endif
 
         public SqlPersistenceFactory(
             IConnectionFactory factory,
