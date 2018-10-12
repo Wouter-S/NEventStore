@@ -1,9 +1,8 @@
 ﻿namespace NEventStore.Client
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
-    using System.Reactive;
-    using System.Reactive.Subjects;
     using System.Threading;
     using System.Threading.Tasks;
     using NEventStore.Logging;
@@ -56,7 +55,7 @@
             private readonly string _bucketId;
             private readonly Subject<ICommit> _subject = new Subject<ICommit>();
             private readonly CancellationTokenSource _stopRequested = new CancellationTokenSource();
-            private TaskCompletionSource<Unit> _runningTaskCompletionSource;
+            private TaskCompletionSource<object> _runningTaskCompletionSource;
             private int _isPolling = 0;
 
             public PollingObserveCommits(IPersistStreams persistStreams, int interval, string bucketId, string checkpointToken = null)
@@ -78,7 +77,7 @@
                 _subject.Dispose();
                 if (_runningTaskCompletionSource != null)
                 {
-                    _runningTaskCompletionSource.TrySetResult(new Unit());
+                    _runningTaskCompletionSource.TrySetResult(null);
                 }
             }
 
@@ -88,7 +87,7 @@
                 {
                     return _runningTaskCompletionSource.Task;
                 }
-                _runningTaskCompletionSource = new TaskCompletionSource<Unit>();
+                _runningTaskCompletionSource = new TaskCompletionSource<object>();
                 PollLoop();
                 return _runningTaskCompletionSource.Task;
             }
@@ -119,7 +118,7 @@
                 {
                     try
                     {
-                        var commits = _bucketId == null ? 
+                        var commits = _bucketId == null ?
                             _persistStreams.GetFrom(_checkpointToken) :
                             _persistStreams.GetFrom(_bucketId, _checkpointToken);
 
@@ -140,6 +139,142 @@
                         Logger.Error(ex.ToString());
                     }
                     Interlocked.Exchange(ref _isPolling, 0);
+                }
+            }
+
+            private class Subject<T>
+                : IObserver<T>
+            {
+                private readonly SemaphoreSlim subscriptionsRwLock = new SemaphoreSlim(1);
+                private IList<Subscription> subscriptions =
+                    new List<Subscription>();
+                private static readonly IList<Subscription> disposed = new List<Subscription>(0).AsReadOnly();
+                private static readonly IList<Subscription> completed = new List<Subscription>(0).AsReadOnly();
+                private readonly ConcurrentQueue<Subscription> pendingUnsubscriptions =
+                    new ConcurrentQueue<Subscription>();
+
+                public IDisposable Subscribe(IObserver<T> observer)
+                {
+                    if (!subscriptionsRwLock.Wait(100))
+                    {
+                        throw new InvalidOperationException("Subscribe from within observable not supported");
+                    }
+
+                    var subscription = new Subscription(this, observer);
+                    subscriptions.Add(subscription);
+
+                    subscriptionsRwLock.Release();
+
+                    return subscription;
+                }
+
+                public void OnNext(T item)
+                {
+                    try
+                    {
+                        subscriptionsRwLock.Wait();
+
+                        foreach (var subscription in subscriptions)
+                        {
+                            subscription.Observer.OnNext(item);
+                        }
+                    }
+                    finally
+                    {
+                        subscriptionsRwLock.Release();
+                    }
+                }
+
+                public void OnCompleted()
+                {
+                    try
+                    {
+                        subscriptionsRwLock.Wait();
+                        foreach (var subscription in subscriptions)
+                        {
+                            subscription.Observer.OnCompleted();
+                        }
+                    }
+                    finally
+                    {
+                        subscriptionsRwLock.Release();
+
+                        Interlocked.Exchange(ref subscriptions, completed);
+                    }
+                }
+
+                public void OnError(Exception error)
+                {
+                    try
+                    {
+                        subscriptionsRwLock.Wait();
+
+                        foreach (var subscription in subscriptions)
+                        {
+                            subscription.Observer.OnError(error);
+                        }
+                    }
+                    finally
+                    {
+                        subscriptionsRwLock.Release();
+                    }
+                }
+
+                public void Dispose()
+                {
+                    Interlocked.Exchange(ref subscriptions, disposed);
+                }
+
+                private void UnsubscribePending()
+                {
+                    if (!subscriptionsRwLock.Wait(100))
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        while (pendingUnsubscriptions.TryDequeue(out var subscription))
+                        {
+                            subscriptions.Remove(subscription);
+                        }
+                    }
+                    finally
+                    {
+                        subscriptionsRwLock.Release();
+                    }
+                }
+
+                private void Unsubscribe(Subscription subscription)
+                {
+                    if (!subscriptionsRwLock.Wait(100))
+                    {
+                        pendingUnsubscriptions.Enqueue(subscription);
+                        return;
+                    }
+
+                    subscriptions.Remove(subscription);
+
+                    subscriptionsRwLock.Release();
+                }
+
+                private class Subscription
+                    : IDisposable
+                {
+                    private readonly Subject<T> subject;
+
+                    public Subscription(Subject<T> subject, IObserver<T> observer)
+                    {
+                        this.subject = subject ?? throw new ArgumentNullException(nameof(subject));
+                        Observer = observer ?? throw new ArgumentNullException(nameof(observer)); ;
+                    }
+
+                    public IObserver<T> Observer { get; private set; }
+
+                    public void Dispose()
+                    {
+                        subject.Unsubscribe(this);
+                    }
                 }
             }
         }

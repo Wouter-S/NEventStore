@@ -23,9 +23,6 @@
 
   <ItemGroup Label="Package references">
     <PackageReference Include="Newtonsoft.Json" Version="6.0.1" />
-    <PackageReference Include="Rx-Core" Version="2.1.30214.0" PrivateAssets="All" />
-    <PackageReference Include="Rx-Interfaces" Version="2.1.30214.0" PrivateAssets="All" />
-    <PackageReference Include="Rx-Linq" Version="2.1.30214.0" PrivateAssets="All" />
   </ItemGroup>
 
   <ItemGroup>
