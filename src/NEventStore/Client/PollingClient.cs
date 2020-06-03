@@ -247,13 +247,28 @@
 
                 private void Unsubscribe(Subscription subscription)
                 {
+                    if (subscriptions.IsReadOnly)
+                    {
+                        // Instance already disposed.
+                        return;
+                    }
+
                     if (!subscriptionsRwLock.Wait(100))
                     {
                         pendingUnsubscriptions.Enqueue(subscription);
                         return;
                     }
 
-                    subscriptions.Remove(subscription);
+                    try
+                    {
+                        subscriptions.Remove(subscription);
+                    }
+                    catch (System.NotSupportedException)
+                    {
+                        // Instance already disposed and replaced by a
+                        // readonly collection but missed the IsReadOnly
+                        // check due to concurrency.
+                    }
 
                     subscriptionsRwLock.Release();
                 }
