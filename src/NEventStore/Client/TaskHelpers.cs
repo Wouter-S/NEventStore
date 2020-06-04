@@ -33,10 +33,11 @@
                 if (task.IsFaulted)
                 {
                     onFaulted.Invoke(task);
-                    return;
+                }
+                else if (!task.IsCanceled) {
+                    onComplete.Invoke(task);
                 }
 
-                onComplete.Invoke(task);
                 return;
             }
 
