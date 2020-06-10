@@ -74,6 +74,13 @@
             public void Dispose()
             {
                 _stopRequested.Cancel();
+
+                int retry = 0;
+                while (retry++ < 5 && Interlocked.CompareExchange(ref _isPolling, -1, 0) == 0) {
+                    Logger.Info("Wait in dispose, is currently polling, retrying {RetryCount}", retry);
+                    Thread.Sleep(retry * 1000);
+                }
+
                 _subject.Dispose();
                 if (_runningTaskCompletionSource != null)
                 {
