@@ -5,13 +5,13 @@
     <RootNamespace>NEventStore</RootNamespace>
     <AssemblyName>NEventStore</AssemblyName>
     <AssemblyGuid>9cb4668f-d7b2-4ad9-8f9b-2af9903d2db2</AssemblyGuid>
-    <TargetFrameworks>net40;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net461;netstandard2.0</TargetFrameworks>
     <SignAssembly>false</SignAssembly>
     <AssemblyOriginatorKeyFile>..\..\NEventStore.snk</AssemblyOriginatorKeyFile>
     <DocumentationFile>bin\$(Configuration)\NEventStore.xml</DocumentationFile>
     <NoWarn>1591</NoWarn>
-    <DefineConstants Condition="'$(TargetFramework)' == 'net40'">HAVE_HTTPCONTEXT;HAVE_DBFACTORY;HAVE_CONNECTIONSTRINGSSETTINGS;HAVE_PERFORMANCECOUNTERS</DefineConstants>
-	
+    <DefineConstants Condition="'$(TargetFramework)' == 'net461'">HAVE_HTTPCONTEXT;HAVE_DBFACTORY;HAVE_CONNECTIONSTRINGSSETTINGS;HAVE_PERFORMANCECOUNTERS</DefineConstants>
+
     <PackageProjectUrl>https://github.com/Evidos/NEventStore</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
     <PackageId>Evidos.NEventStore</PackageId>
@@ -29,7 +29,7 @@
     <Reference Include="System.Transactions" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net40'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net461'">
     <Reference Include="System.Configuration" />
     <Reference Include="System.Web" />
   </ItemGroup>
