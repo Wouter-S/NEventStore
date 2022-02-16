@@ -1,17 +1,17 @@
 namespace NEventStore.Persistence.Sql
 {
     using System;
+    using System.Collections.Generic;
     using System.Threading;
-    using System.Web;
     using NEventStore.Logging;
 
     public class ThreadScope<T> : IDisposable where T : class
     {
-#if HAVE_HTTPCONTEXT
-        private readonly HttpContext _context = HttpContext.Current;
-#else
-        private readonly object _context = null;
-#endif
+        [ThreadStatic]
+        private static Dictionary<string, T> _context;
+
+        private static AsyncLocal<Dictionary<string, T>> _asyncLocalContext;
+
         private readonly T _current;
         private readonly ILog _logger = LogFactory.BuildLogger(typeof (ThreadScope<T>));
         private readonly bool _rootScope;
@@ -79,28 +79,39 @@ namespace NEventStore.Persistence.Sql
 
         private T Load()
         {
-            if (_context != null)
+            if (_context != null && _context.TryGetValue(_threadKey, out T value))
             {
-#if HAVE_HTTPCONTEXT
-                return _context.Items[_threadKey] as T;
-#endif
+                return value;
             }
 
-            return Thread.GetData(Thread.GetNamedDataSlot(_threadKey)) as T;
+            return null;
         }
 
         private void Store(T value)
         {
-            if (_context != null)
+            if (_asyncLocalContext == null)
             {
-#if HAVE_HTTPCONTEXT
-                _context.Items[_threadKey] = value;
-#endif
+                Interlocked.CompareExchange(
+                    ref _asyncLocalContext,
+                    new AsyncLocal<Dictionary<string, T>>(AsyncLocalSetContext),
+                    null);
+                _asyncLocalContext.Value = new Dictionary<string, T>();
             }
-            else
-            {
-                Thread.SetData(Thread.GetNamedDataSlot(_threadKey), value);
+
+            if (_context == null) {
+                _asyncLocalContext.Value = new Dictionary<string, T>();
             }
+
+            if (_context == null) {
+                throw new InvalidOperationException();
+            }
+
+            _context[_threadKey] = value;
+        }
+
+        private static void AsyncLocalSetContext(AsyncLocalValueChangedArgs<Dictionary<string, T>> args)
+        {
+            _context = args.CurrentValue;
         }
     }
 }
